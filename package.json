@@ -12,7 +12,11 @@
     "@capacitor/filesystem": "^8.0.0",
     "@capacitor/local-notifications": "^8.0.0",
     "@capacitor/share": "^8.0.0",
-    "@ebarooni/capacitor-calendar": "^8.0.0"
+    "@ebarooni/capacitor-calendar": "^8.0.0",
+    "sharp": "^0.35.5"
   },
-  "devDependencies": { "esbuild": "^0.25.0" }
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "sharp": "^0.34.0"
+  }
 }

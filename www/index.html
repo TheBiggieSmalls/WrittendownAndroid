@@ -72,7 +72,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--p)}
 .edv{position:absolute;inset:0;background:var(--s);z-index:30;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
 .edv .tb{display:flex;align-items:center;gap:2px;padding:4px 8px}
 .big{background:none!important;border:0!important;font-size:28px;font-weight:500;padding:8px 20px!important;border-radius:0!important}
-#nb{flex:1;overflow-y:auto;padding:8px 20px 40px;font-size:18px;line-height:1.6;outline:0}
+#nw{flex:1;overflow-y:auto;display:flex;flex-direction:column;margin-top:6px}#nb{flex:1 0 auto;padding:8px 20px 80px;font-size:18px;line-height:1.6;outline:0}
 #nb:empty:before{content:attr(placeholder);color:var(--onv)}
 .menu{position:absolute;right:12px;top:calc(60px + env(safe-area-inset-top));background:var(--sh);border-radius:16px;padding:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);min-width:230px}.menu button{height:52px;width:100%;padding:0 16px;border-radius:12px;display:flex;gap:14px;align-items:center;font-size:17px}.menu button:active{background:var(--sl)}
 .fo{display:flex;justify-content:space-between;align-items:center;width:100%;height:60px;padding:0 20px;border-radius:16px;font-size:22px}.fo.on{background:var(--pc);color:var(--opc)}
@@ -156,7 +156,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--p)}
   <div class="tb">
     <button class="ib" onclick="closeEd()"><svg class="ic"><use href="#i-back"/></svg></button>
     <span class="grow" id="ss" style="font-size:13px;color:var(--onv);padding-left:4px"></span>
-    <button class="ib" onclick="$('xm').hidden=false"><svg class="ic"><use href="#i-dl"/></svg></button>
+    <button class="ib" onclick="openXm()"><svg class="ic"><use href="#i-dl"/></svg></button>
     <button class="ib" onclick="delNote()" style="color:var(--er)"><svg class="ic"><use href="#i-del"/></svg></button>
   </div>
   <div style="display:flex;gap:10px;padding:4px 16px 0">
@@ -171,8 +171,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--p)}
     <button class="ib" onclick="fmt('insertOrderedList')"><svg class="ic"><use href="#i-ol"/></svg></button>
     <button class="ib" onclick="openFonts()" style="font-weight:700;font-size:19px">Aa</button>
   </div>
-  <div id="nb" contenteditable="true" oninput="saveNote()" placeholder="Begin met typen…" style="margin-top:6px"></div>
-  <div id="xm" hidden style="position:absolute;inset:0;z-index:5" onclick="this.hidden=true"><div class="menu">
+  <div id="nw" onclick="if(event.target===this)endCaret()"><div id="nb" contenteditable="true" oninput="saveNote()" onclick="if(event.target===this)endCaret()" placeholder="Begin met typen…"></div></div>
+  <div id="xm" hidden style="position:absolute;inset:0;z-index:5" onclick="closeXm()"><div class="menu">
     <button onclick="expNote('txt')"><svg class="ic"><use href="#i-note"/></svg>Exporteer als TXT</button>
     <button onclick="expNote('doc')"><svg class="ic"><use href="#i-note"/></svg>Exporteer als Word</button>
   </div></div>
@@ -249,7 +249,13 @@ const S={
 let cur={y:new Date().getFullYear(),m:new Date().getMonth()},sel=TODAY;
 function save(){localStorage.setItem('wd_events',JSON.stringify(S.events));localStorage.setItem('wd_tasks',JSON.stringify(S.tasks));localStorage.setItem('wd_folders',JSON.stringify(S.folders));localStorage.setItem('wd_notes',JSON.stringify(S.notes));badge();window.WDN&&WDN.sync(S)}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('o');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('o'),3200)}
-const openM=id=>$(id).classList.add('o'),closeM=id=>$(id).classList.remove('o');
+// terugknop: elk open scherm/pop-up krijgt een geschiedenis-item, zodat 'terug' eerst dat sluit
+const stack=[];
+function push(id,fn){stack.push({id,fn});history.pushState({},'')}
+function pop(id){const i=stack.findIndex(x=>x.id===id);if(i<0)return false;if(i===stack.length-1)history.back();else{const[l]=stack.splice(i,1);l.fn()}return true}
+addEventListener('popstate',()=>{const l=stack.pop();if(l)l.fn()});
+const openM=id=>{$(id).classList.add('o');push(id,()=>$(id).classList.remove('o'))};
+const closeM=id=>{if(!pop(id))$(id).classList.remove('o')};
 
 // ---- navigation
 function go(t){
@@ -260,7 +266,8 @@ function go(t){
   if(t==='kalender')renderCal();if(t==='taken')renderTasks();if(t==='notities')renderNotes();
 }
 const fabGo=()=>S.tab==='taken'?openTk():openEv();
-function drawer(o){$('dr').classList.toggle('o',!!o);$('dsc').classList.toggle('o',!!o);if(o)chkInst()}
+function setDr(o){$('dr').classList.toggle('o',!!o);$('dsc').classList.toggle('o',!!o);if(o)chkInst()}
+function drawer(o){if(o){if(!stack.some(x=>x.id==='dr')){setDr(1);push('dr',()=>setDr(0))}}else if(!pop('dr'))setDr(0)}
 
 // ---- agenda
 function occurs(e,ds){
@@ -379,9 +386,12 @@ function newNote(){const n={id:'n_'+Date.now(),title:'',folder:S.folder!=='Alle'
 function openEd(id){
   const n=S.notes.find(x=>x.id===id);if(!n)return;S.noteId=id;
   $('nf').innerHTML='<option value="">Geen map</option>'+S.folders.filter(f=>f!=='Alle').map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
-  $('nf').value=n.folder||'';curFont=n.font||'sans';applyFont();$('nt').value=n.title;$('nb').innerHTML=n.body;$('ss').textContent='';$('ed').hidden=false;
+  $('nf').value=n.folder||'';curFont=n.font||'sans';applyFont();$('nt').value=n.title;$('nb').innerHTML=n.body;$('ss').textContent='';$('ed').hidden=false;push('ed',hideEd);
 }
-function closeEd(){$('ed').hidden=true;S.noteId=null;renderNotes()}
+function openXm(){$('xm').hidden=false;push('xm',()=>$('xm').hidden=true)}
+function closeXm(){if(!pop('xm'))$('xm').hidden=true}
+function hideEd(){$('ed').hidden=true;S.noteId=null;renderNotes()}
+function closeEd(){if(!pop('ed'))hideEd()}
 function saveNote(){
   const n=S.notes.find(x=>x.id===S.noteId);if(!n)return;
   n.title=$('nt').value;n.folder=$('nf').value;n.font=curFont;n.body=$('nb').innerHTML;n.updatedAt='Zojuist';save();$('ss').textContent='Opgeslagen';
@@ -401,6 +411,7 @@ function exportNotes(l,fmt,name){
   toast('Geëxporteerd');
 }
 const expNote=f=>{const n=S.notes.find(x=>x.id===S.noteId);if(n)exportNotes([n],f,n.title)};
+function endCaret(){const n=$('nb');n.focus();const r=document.createRange();r.selectNodeContents(n);r.collapse(false);const q=getSelection();q.removeAllRanges();q.addRange(r)}
 function fmt(c,v){document.execCommand(c,false,v||null);$('nb').focus();saveNote()}
 
 // ---- systeem
