@@ -1,0 +1,6 @@
+{
+  "appId": "be.jaroslav.writtendown",
+  "appName": "Written Down",
+  "webDir": "www",
+  "android": { "backgroundColor": "#fbf8ff" }
+}
